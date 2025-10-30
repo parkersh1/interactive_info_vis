@@ -25,11 +25,36 @@ registerSketch('sk2', function (p) {
     p.fill(0, 0, 0, 20);
     p.rect(this.w * 0.18, -this.h * 0.38, this.w * 0.18, this.h * 0.18, 4);
 
-    // Text
-    p.fill(30);
-    p.textSize(14);
-    p.textAlign(p.LEFT, p.TOP);
-    p.text(this.text, -this.w / 2 + 10, -this.h / 2 + 10, this.w - 18, this.h - 18);
+    // Text (notes are intentionally blank in this sketch)
+    if (this.text) {
+      p.fill(30);
+      p.textSize(14);
+      p.textAlign(p.LEFT, p.TOP);
+      p.text(this.text, -this.w / 2 + 10, -this.h / 2 + 10, this.w - 18, this.h - 18);
+    }
+
+    // Time encoding: three small bars showing hour, minute, second proportionally
+    const barW = this.w * 0.36;
+    const barH = 6;
+    const gap = 4;
+    const startX = this.w / 2 - barW - 10;
+    const startY = this.h / 2 - barH * 3 - gap * 2 - 8;
+
+    // Hour (0-23) normalized to 0-1
+    const hNorm = p.hour() / 23;
+    p.noStroke();
+    p.fill(80, 140, 200, 220);
+    p.rect(startX, startY, barW * hNorm, barH, 3);
+
+    // Minute (0-59) normalized
+    const mNorm = p.minute() / 59;
+    p.fill(120, 200, 140, 220);
+    p.rect(startX, startY + barH + gap, barW * mNorm, barH, 3);
+
+    // Second (0-59) normalized
+    const sNorm = p.second() / 59;
+    p.fill(220, 160, 80, 220);
+    p.rect(startX, startY + (barH + gap) * 2, barW * sNorm, barH, 3);
     p.pop();
   };
 
@@ -53,6 +78,20 @@ registerSketch('sk2', function (p) {
       const text = ''; // intentionally empty — notes should have no visible text
       p.notes.push(new StickyNote(x, y, noteW, noteH, color, text));
     }
+    const TOTAL_DURATION = 600000; // 10 minutes in ms
+    const base = p.millis();
+    const interval = TOTAL_DURATION / NOTE_COUNT; // ms between each note start
+    
+    // Physics / timing properties for each note
+    for (let i = 0; i < p.notes.length; i++) {
+      const note = p.notes[i];
+      note.vx = p.random(-0.3, 0.3);
+      note.vy = 0;
+      note.ay = 0.18; // gravity
+      note.isFalling = false; // becomes true when its drop time is reached
+      note.dropAt = base + i * interval; // absolute millis when it should start falling
+      note.gone = false; // set true when fully off-screen
+    }
   };
 
   p.draw = function () {
@@ -66,10 +105,44 @@ registerSketch('sk2', function (p) {
     p.text('HWK #4. A — Sticky Notes (static)', p.width / 2, 8);
     p.pop();
 
-    // Draw notes
+    const now = p.millis();
+
+    // Update and draw notes. When their scheduled time is reached, they start falling.
     for (let i = 0; i < p.notes.length; i++) {
-      p.notes[i].draw();
+      const n = p.notes[i];
+      if (!n.gone) {
+        if (!n.isFalling && now >= n.dropAt) {
+          n.isFalling = true;
+          // give them a little kick when they start falling
+          n.vx += p.random(-0.5, 0.5);
+          n.vy += p.random(0, 1);
+        }
+
+        if (n.isFalling) {
+          n.vy += n.ay;
+          n.x += n.vx;
+          n.y += n.vy;
+          n.rot += n.vx * 0.02; // slight spin
+
+          // If the note is well past the bottom, mark gone
+          if (n.y - n.h / 2 > CANVAS_SIZE + 60) {
+            n.gone = true;
+          }
+        }
+
+        // Draw only if not gone
+        if (!n.gone) n.draw();
+      }
     }
+
+    // Optionally: show remaining count in the corner (useful for debugging)
+    p.push();
+    p.fill(60);
+    p.textAlign(p.RIGHT, p.BOTTOM);
+    p.textSize(12);
+    const remaining = p.notes.filter(n => !n.gone).length;
+    p.text(`${remaining} notes remaining`, p.width - 8, p.height - 8);
+    p.pop();
   };
 
   // Keep canvas fixed at 800x800 for this sketch (no automatic resize)
