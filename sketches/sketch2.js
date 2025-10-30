@@ -1,6 +1,18 @@
 registerSketch('sk2', function (p) {
   // Basic configuration
   const CANVAS_SIZE = 800;
+  const TOTAL_DURATION = 600000; // 10 minutes in ms (shared)
+  let startTime = 0; // will be set in setup
+
+  // helper: format ms -> MM:SS
+  function formatTime(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+    const mm = String(minutes).padStart(2, '0');
+    const ss = String(seconds).padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
 
   // Sticky note constructor (uses p in outer scope)
   function StickyNote(x, y, w, h, color, text) {
@@ -78,9 +90,9 @@ registerSketch('sk2', function (p) {
       const text = ''; // intentionally empty — notes should have no visible text
       p.notes.push(new StickyNote(x, y, noteW, noteH, color, text));
     }
-    const TOTAL_DURATION = 600000; // 10 minutes in ms
-    const base = p.millis();
-    const interval = TOTAL_DURATION / NOTE_COUNT; // ms between each note start
+  // set shared startTime for timer and scheduling
+  startTime = p.millis();
+  const interval = TOTAL_DURATION / NOTE_COUNT; // ms between each note start
     
     // Physics / timing properties for each note
     for (let i = 0; i < p.notes.length; i++) {
@@ -89,7 +101,7 @@ registerSketch('sk2', function (p) {
       note.vy = 0;
       note.ay = 0.18; // gravity
       note.isFalling = false; // becomes true when its drop time is reached
-      note.dropAt = base + i * interval; // absolute millis when it should start falling
+      note.dropAt = startTime + i * interval; // absolute millis when it should start falling
       note.gone = false; // set true when fully off-screen
     }
   };
@@ -102,7 +114,7 @@ registerSketch('sk2', function (p) {
     p.fill(50);
     p.textAlign(p.CENTER, p.TOP);
     p.textSize(18);
-    p.text('HWK #4. A — Sticky Notes (static)', p.width / 2, 8);
+  p.text('HWK #4. A — Sticky Notes', p.width / 2, 8);
     p.pop();
 
     const now = p.millis();
@@ -142,6 +154,17 @@ registerSketch('sk2', function (p) {
     p.textSize(12);
     const remaining = p.notes.filter(n => !n.gone).length;
     p.text(`${remaining} notes remaining`, p.width - 8, p.height - 8);
+    p.pop();
+
+    // Bottom-left timer: show elapsed and remaining (MM:SS)
+    p.push();
+    p.fill(60);
+    p.textAlign(p.LEFT, p.BOTTOM);
+    p.textSize(12);
+    const elapsedMs = Math.max(0, now - startTime);
+    const remainingMs = Math.max(0, TOTAL_DURATION - elapsedMs);
+    p.text(`Elapsed: ${formatTime(elapsedMs)}`, 8, p.height - 8);
+    p.text(`Remaining: ${formatTime(remainingMs)}`, 8, p.height - 26);
     p.pop();
   };
 
