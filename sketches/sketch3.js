@@ -8,6 +8,16 @@ registerSketch('sk3', function (p) {
   const BAR_H = 600;
   const BAR_RADIUS = 12;
 
+  // helper: format ms -> MM:SS
+  function formatTime(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+    const mm = String(minutes).padStart(2, '0');
+    const ss = String(seconds).padStart(2, '0');
+    return `${mm}:${ss}`;
+  }
+
   p.setup = function () {
     p.createCanvas(CANVAS_SIZE, CANVAS_SIZE);
     // current water level (0..1), starts empty
@@ -93,6 +103,25 @@ registerSketch('sk3', function (p) {
     }
 
     p.pop();
+
+    // --- Timer display: show current phase and time remaining until next study/break ---
+    const remainingMs = Math.max(0, current.dur - t);
+    let phaseLabel = 'Long Break';
+    if (current.type === 'fill') phaseLabel = 'Study (work)';
+    else if (current.type === 'deplete') phaseLabel = 'Short Break';
+
+    // Textual timer (bottom-left)
+    p.push();
+    p.fill(40);
+    p.textSize(14);
+    p.textAlign(p.LEFT, p.BOTTOM);
+    // Message: Time until the phase ends (reworded as requested)
+    const caption = (current.type === 'fill') ? 'Time until break:' : 'Time until study:';
+    p.text(`${phaseLabel}`, 12, p.height - 40);
+    p.text(`${caption} ${formatTime(remainingMs)}`, 12, p.height - 22);
+    p.pop();
+
+  // (Top-right time visuals removed per user request)
   };
 
   // Keep canvas fixed at 800x800 for this sketch
