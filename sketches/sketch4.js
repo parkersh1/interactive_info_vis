@@ -36,6 +36,15 @@ registerSketch('sk4', function (p) {
       c = p.lerpColor(c, p.color(20, 24, 40), 0.08);
       p.dotColors.push(c);
     }
+    // Pomodoro timing for this sketch (real time)
+    p.pomo = {
+      work: 25 * 60 * 1000, // 25 minutes
+      short: 5 * 60 * 1000, // 5 minutes
+      long: 15 * 60 * 1000, // 15 minutes
+      cycles: 3
+    };
+    p._cycleDuration = (p.pomo.work + p.pomo.short) * p.pomo.cycles + p.pomo.long;
+    p._startTime = p.millis();
   };
 
   p.draw = function () {
@@ -85,20 +94,53 @@ registerSketch('sk4', function (p) {
       p.ellipse(x, y, r * 2, r * 2);
     }
 
-    // center placeholder (timer will go here later)
+    // --- Pomodoro countdown in center ---
+    // compute current phase and remaining time
+    const now = p.millis();
+    const elapsed = (now - (p._startTime || now)) % p._cycleDuration;
+    const phases = [];
+    for (let i = 0; i < p.pomo.cycles; i++) {
+      phases.push({ type: 'work', dur: p.pomo.work });
+      phases.push({ type: 'short', dur: p.pomo.short });
+    }
+    phases.push({ type: 'long', dur: p.pomo.long });
+
+    let t = elapsed;
+    let current = phases[phases.length - 1];
+    for (let i = 0; i < phases.length; i++) {
+      const ph = phases[i];
+      if (t <= ph.dur) { current = ph; break; }
+      t -= ph.dur;
+    }
+    const remainingMs = Math.max(0, current.dur - t);
+
+    // format time mm:ss
+    function formatTime(ms) {
+      const totalSec = Math.max(0, Math.floor(ms / 1000));
+      const minutes = Math.floor(totalSec / 60);
+      const seconds = totalSec % 60;
+      return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+    }
+
+    // label
+    let label = '';
+    if (current.type === 'work') label = 'Study Time';
+    else if (current.type === 'short') label = 'Short Break';
+    else label = 'Long Break';
+
+    // Draw center circle overlay and text
     p.push();
-    p.noFill();
-    p.stroke(200);
-    p.strokeWeight(2);
-    p.ellipse(cx, cy, 220, 220);
     p.fill(240);
     p.noStroke();
     p.ellipse(cx, cy, 200, 200);
-    p.fill(60);
-    p.textSize(20);
+    p.fill(40);
     p.textAlign(p.CENTER, p.CENTER);
-    p.text('Timer', cx, cy);
+    p.textSize(28);
+    p.text(formatTime(remainingMs), cx, cy - 6);
+    p.textSize(14);
+    p.text(label, cx, cy + 26);
     p.pop();
+
   };
 
   // fixed canvas size
